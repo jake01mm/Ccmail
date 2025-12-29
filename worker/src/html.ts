@@ -84,10 +84,23 @@ export const HTML_PAGE = `<!DOCTYPE html>
       padding: 6px 12px;
       font-size: 12px;
     }
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+    }
+    .btn-secondary:hover {
+      background: #444;
+    }
     .input-group {
       display: flex;
       gap: 10px;
       margin-bottom: 15px;
+    }
+    .input-with-btn {
+      position: relative;
+      flex: 1;
+      display: flex;
+      gap: 8px;
     }
     input[type="text"] {
       flex: 1;
@@ -293,7 +306,10 @@ export const HTML_PAGE = `<!DOCTYPE html>
         <span class="card-title">Create New Alias</span>
       </div>
       <div class="input-group">
-        <input type="text" id="newAlias" placeholder="Enter alias (e.g., test123)">
+        <div class="input-with-btn">
+          <input type="text" id="newAlias" placeholder="Enter alias (e.g., test123)">
+          <button class="btn btn-secondary btn-sm" onclick="generateRandomAlias()" title="Generate random alias">Random</button>
+        </div>
         <input type="text" id="aliasDesc" placeholder="Description (optional)">
         <button class="btn btn-primary" onclick="createAlias()">Create</button>
       </div>
@@ -351,6 +367,19 @@ export const HTML_PAGE = `<!DOCTYPE html>
     document.addEventListener('DOMContentLoaded', () => {
       refreshAliases();
     });
+
+    function generateRandomAlias() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      const prefixes = ['mail', 'user', 'acc', 'tmp', 'box', 'id', 'reg'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      let suffix = '';
+      for (let i = 0; i < 6; i++) {
+        suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const alias = prefix + '_' + suffix;
+      document.getElementById('newAlias').value = alias;
+      document.getElementById('aliasDesc').value = 'Auto generated';
+    }
 
     async function refreshAliases() {
       try {
