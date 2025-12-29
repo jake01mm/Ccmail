@@ -310,6 +310,9 @@ export const HTML_PAGE = `<!DOCTYPE html>
           <input type="text" id="newAlias" placeholder="Enter alias (e.g., test123)">
           <button class="btn btn-secondary btn-sm" onclick="generateRandomAlias()" title="Generate random alias">Random</button>
         </div>
+        <select id="domainSelect" class="btn btn-secondary" style="padding: 12px 16px; min-width: 150px;">
+          <option value="">Loading domains...</option>
+        </select>
         <input type="text" id="aliasDesc" placeholder="Description (optional)">
         <button class="btn btn-primary" onclick="createAlias()">Create</button>
       </div>
@@ -318,7 +321,10 @@ export const HTML_PAGE = `<!DOCTYPE html>
     <div class="card">
       <div class="card-header">
         <span class="card-title">Email Aliases</span>
-        <button class="btn btn-sm" onclick="refreshAliases()">Refresh</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm" onclick="refreshAliases()">Refresh</button>
+          <button class="btn btn-sm btn-secondary" onclick="showDomainManager()">Manage Domains</button>
+        </div>
       </div>
       <div id="aliasList" class="alias-list">
         <div class="loading">Loading...</div>
@@ -356,29 +362,122 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
   <div id="toast" class="toast">Copied!</div>
 
+  <!-- 域名管理模态框 -->
+  <div id="domainModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Manage Domains</h3>
+        <button class="modal-close" onclick="closeDomainModal()">&times;</button>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <div class="input-group">
+          <input type="text" id="newDomain" placeholder="Enter domain (e.g., example.com)" style="flex: 1;">
+          <button class="btn btn-primary" onclick="addDomain()">Add Domain</button>
+        </div>
+      </div>
+      <div id="domainList" class="alias-list"></div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = '';
 
     let aliases = [];
+    let domains = [];
     let selectedAlias = null;
     let currentEmails = [];
     let currentCode = null;
 
     document.addEventListener('DOMContentLoaded', () => {
+      refreshDomains();
       refreshAliases();
     });
 
     function generateRandomAlias() {
-      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-      const prefixes = ['mail', 'user', 'acc', 'tmp', 'box', 'id', 'reg'];
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      let suffix = '';
-      for (let i = 0; i < 6; i++) {
-        suffix += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      const alias = prefix + '_' + suffix;
+      // 扩展的姓名库，包含中英文常见姓名
+      const firstNames = [
+        'john', 'alice', 'mike', 'sarah', 'david', 'emily', 'james', 'lisa', 'tom', 'anna',
+        'jack', 'sophia', 'will', 'olivia', 'chris', 'emma', 'ryan', 'mia', 'alex', 'lily',
+        'daniel', 'grace', 'michael', 'chloe', 'william', 'zoe', 'benjamin', 'ava', 'lucas', 'ella',
+        'henry', 'sophie', 'noah', 'isabella', 'ethan', 'emma', 'mason', 'charlotte', 'logan', 'amelia'
+      ];
+      
+      const surnames = [
+        'wang', 'li', 'zhang', 'liu', 'chen', 'yang', 'huang', 'zhao', 'wu', 'zhou',
+        'xu', 'sun', 'ma', 'gao', 'lin', 'he', 'zhu', 'guo', 'lu', 'song',
+        'smith', 'johnson', 'williams', 'brown', 'jones', 'garcia', 'miller', 'davis', 'rodriguez', 'martinez',
+        'lee', 'kim', 'park', 'choi', 'tanaka', 'yamada', 'sato', 'suzuki', 'watanabe', 'kobayashi'
+      ];
+      
+      // 常见邮箱格式模板
+      const formats = [
+        // 格式 1: firstname.surname + 数字
+        (f, s, n) => `${f}.${s}${n}`,
+        // 格式 2: firstname + 数字 + surname
+        (f, s, n) => `${f}${n}${s}`,
+        // 格式 3: firstname + surname (无数字)
+        (f, s, n) => `${f}.${s}`,
+        // 格式 4: firstname + 首字母 + surname
+        (f, s, n) => `${f}${f[0]}.${s}`,
+        // 格式 5: 首字母 + surname + 数字
+        (f, s, n) => `${f[0]}.${s}${n}`,
+        // 格式 6: firstname + 下划线 + surname + 数字
+        (f, s, n) => `${f}_${s}${n}`,
+        // 格式 7: firstname + 年份
+        (f, s, n) => `${f}${new Date().getFullYear()}`,
+        // 格式 8: firstname + 月份 + 年份后两位
+        (f, s, n) => `${f}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getFullYear()).slice(-2)}`,
+        // 格式 9: surname + firstname + 数字
+        (f, s, n) => `${s}.${f}${n}`,
+        // 格式 10: 首字母组合 + 数字
+        (f, s, n) => `${f[0]}${s[0]}${n}`,
+      ];
+      
+      // 随机选择姓名
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const surname = surnames[Math.floor(Math.random() * surnames.length)];
+      
+      // 生成随机数字（1-999，但更偏向小数字，看起来更真实）
+      const randomNum = Math.random() > 0.7 
+        ? Math.floor(Math.random() * 999) + 1  // 30% 概率使用大数字
+        : Math.floor(Math.random() * 99) + 1;   // 70% 概率使用小数字
+      
+      // 随机选择格式
+      const formatFunc = formats[Math.floor(Math.random() * formats.length)];
+      const alias = formatFunc(firstName, surname, randomNum);
+      
       document.getElementById('newAlias').value = alias;
       document.getElementById('aliasDesc').value = 'Auto generated';
+    }
+
+    // 获取域名列表
+    async function refreshDomains() {
+      try {
+        const res = await fetch(API_BASE + '/api/domains');
+        const data = await res.json();
+        if (data.success) {
+          domains = data.data.filter(d => d.is_active);
+          renderDomainSelect();
+        }
+      } catch (e) {
+        console.error('Failed to fetch domains:', e);
+      }
+    }
+
+    // 渲染域名选择下拉框
+    function renderDomainSelect() {
+      const select = document.getElementById('domainSelect');
+      if (domains.length === 0) {
+        select.innerHTML = '<option value="">No domains available</option>';
+        return;
+      }
+      select.innerHTML = domains.map(d => 
+        `<option value="${d.domain}">@${d.domain}</option>`
+      ).join('');
+      // 默认选择第一个域名
+      if (domains.length > 0 && !select.value) {
+        select.value = domains[0].domain;
+      }
     }
 
     async function refreshAliases() {
@@ -419,8 +518,10 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
     async function createAlias() {
       const aliasInput = document.getElementById('newAlias');
+      const domainSelect = document.getElementById('domainSelect');
       const descInput = document.getElementById('aliasDesc');
       const alias = aliasInput.value.trim().toLowerCase();
+      const domain = domainSelect.value.trim();
       const description = descInput.value.trim();
 
       if (!alias) {
@@ -428,11 +529,16 @@ export const HTML_PAGE = `<!DOCTYPE html>
         return;
       }
 
+      if (!domain) {
+        alert('Please select a domain');
+        return;
+      }
+
       try {
         const res = await fetch(API_BASE + '/api/aliases', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ alias, description })
+          body: JSON.stringify({ alias, domain, description })
         });
         const data = await res.json();
         if (data.success) {
@@ -590,14 +696,110 @@ export const HTML_PAGE = `<!DOCTYPE html>
       return div.innerHTML;
     }
 
+    // 域名管理功能
+    function showDomainManager() {
+      document.getElementById('domainModal').classList.add('show');
+      refreshDomainList();
+    }
+
+    function closeDomainModal() {
+      document.getElementById('domainModal').classList.remove('show');
+    }
+
+    async function refreshDomainList() {
+      try {
+        const res = await fetch(API_BASE + '/api/domains');
+        const data = await res.json();
+        if (data.success) {
+          const container = document.getElementById('domainList');
+          const activeDomains = data.data.filter(d => d.is_active);
+          if (activeDomains.length === 0) {
+            container.innerHTML = '<div class="empty-state">No domains yet. Add one above!</div>';
+            return;
+          }
+          container.innerHTML = activeDomains.map(domain =>
+            '<div class="alias-item">' +
+              '<div class="alias-info">' +
+                '<span class="alias-address">@' + domain.domain + '</span>' +
+                '<span class="alias-meta">' + domain.alias_count + ' aliases | Created: ' + formatDate(domain.created_at) + '</span>' +
+              '</div>' +
+              '<div class="alias-actions">' +
+                '<button class="btn btn-danger btn-sm" onclick="deleteDomain(' + domain.id + ')">Delete</button>' +
+              '</div>' +
+            '</div>'
+          ).join('');
+        }
+      } catch (e) {
+        console.error('Failed to fetch domains:', e);
+      }
+    }
+
+    async function addDomain() {
+      const input = document.getElementById('newDomain');
+      const domain = input.value.trim().toLowerCase();
+
+      if (!domain) {
+        alert('Please enter a domain');
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/api/domains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain })
+        });
+        const data = await res.json();
+        if (data.success) {
+          input.value = '';
+          refreshDomains();
+          refreshDomainList();
+        } else {
+          alert(data.error || 'Failed to add domain');
+        }
+      } catch (e) {
+        console.error('Failed to add domain:', e);
+        alert('Failed to add domain');
+      }
+    }
+
+    async function deleteDomain(id) {
+      if (!confirm('Are you sure you want to delete this domain? This will not delete existing aliases.')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/api/domains/' + id, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          refreshDomains();
+          refreshDomainList();
+        }
+      } catch (e) {
+        console.error('Failed to delete domain:', e);
+      }
+    }
+
     document.getElementById('emailModal').addEventListener('click', (e) => {
       if (e.target.id === 'emailModal') {
         closeModal();
       }
     });
 
+    document.getElementById('domainModal').addEventListener('click', (e) => {
+      if (e.target.id === 'domainModal') {
+        closeDomainModal();
+      }
+    });
+
     document.getElementById('newAlias').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') createAlias();
+    });
+
+    document.getElementById('newDomain').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') addDomain();
     });
   </script>
 </body>

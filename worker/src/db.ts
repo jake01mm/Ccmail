@@ -24,11 +24,11 @@ export class Database {
     return result.length > 0 && result[0].is_active;
   }
 
-  // 获取别名 ID
-  async getAliasId(alias: string): Promise<number | null> {
+  // 获取别名 ID（根据完整地址查找，支持多域名）
+  async getAliasId(fullAddress: string): Promise<number | null> {
     const result = await this.query<{ id: number }>(
-      'SELECT id FROM email_aliases WHERE alias = $1 AND is_active = TRUE',
-      [alias]
+      'SELECT id FROM email_aliases WHERE full_address = $1 AND is_active = TRUE',
+      [fullAddress.toLowerCase()]
     );
     return result.length > 0 ? result[0].id : null;
   }
@@ -53,23 +53,24 @@ export class Database {
     return result[0].id;
   }
 
-  // 创建别名
+  // 创建别名（支持多域名）
   async createAlias(alias: string, domain: string, description?: string): Promise<{ id: number; fullAddress: string }> {
     const fullAddress = `${alias}@${domain}`;
     const result = await this.query<{ id: number }>(
-      `INSERT INTO email_aliases (alias, full_address, description)
-       VALUES ($1, $2, $3)
+      `INSERT INTO email_aliases (alias, full_address, domain, description)
+       VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [alias, fullAddress, description || null]
+      [alias.toLowerCase(), fullAddress.toLowerCase(), domain.toLowerCase(), description || null]
     );
-    return { id: result[0].id, fullAddress };
+    return { id: result[0].id, fullAddress: fullAddress.toLowerCase() };
   }
 
-  // 获取所有别名
+  // 获取所有别名（包含域名信息）
   async getAllAliases(): Promise<Array<{
     id: number;
     alias: string;
     full_address: string;
+    domain: string | null;
     description: string | null;
     is_active: boolean;
     created_at: string;
@@ -153,5 +154,52 @@ export class Database {
       [aliasId]
     );
     return result.length > 0 ? result[0].verification_code : null;
+  }
+
+  // ========== 域名管理方法 ==========
+
+  // 获取所有域名
+  async getAllDomains(): Promise<Array<{
+    id: number;
+    domain: string;
+    is_active: boolean;
+    created_at: string;
+    alias_count: number;
+  }>> {
+    return await this.query(
+      `SELECT d.*,
+              (SELECT COUNT(*) FROM email_aliases ea WHERE ea.domain = d.domain) as alias_count
+       FROM domains d
+       ORDER BY d.created_at DESC`
+    );
+  }
+
+  // 添加域名
+  async addDomain(domain: string): Promise<{ id: number; domain: string }> {
+    const result = await this.query<{ id: number; domain: string }>(
+      `INSERT INTO domains (domain)
+       VALUES ($1)
+       ON CONFLICT (domain) DO UPDATE SET is_active = TRUE
+       RETURNING id, domain`,
+      [domain.toLowerCase()]
+    );
+    return result[0];
+  }
+
+  // 删除域名（软删除，设置为非激活）
+  async deleteDomain(domainId: number): Promise<void> {
+    await this.query(
+      'UPDATE domains SET is_active = FALSE WHERE id = $1',
+      [domainId]
+    );
+  }
+
+  // 检查域名是否存在且激活
+  async isDomainActive(domain: string): Promise<boolean> {
+    const result = await this.query<{ is_active: boolean }>(
+      'SELECT is_active FROM domains WHERE domain = $1',
+      [domain.toLowerCase()]
+    );
+    return result.length > 0 && result[0].is_active;
   }
 }

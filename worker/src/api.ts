@@ -51,9 +51,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return successResponse(aliases);
     }
 
-    // POST /api/aliases - 创建新别名
+    // POST /api/aliases - 创建新别名（支持多域名）
     if (method === 'POST' && path === '/api/aliases') {
-      const body = await request.json() as { alias: string; description?: string };
+      const body = await request.json() as { alias: string; domain?: string; description?: string };
 
       if (!body.alias) {
         return errorResponse('Alias is required');
@@ -65,13 +65,29 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return errorResponse('Invalid alias format. Use letters, numbers, dots, underscores, or hyphens.');
       }
 
+      // 使用提供的域名，或回退到环境变量中的默认域名
+      const domain = (body.domain || env.DOMAIN).toLowerCase();
+
+      // 验证域名格式
+      const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$/;
+      if (!domainRegex.test(domain)) {
+        return errorResponse('Invalid domain format');
+      }
+
+      // 检查域名是否存在且激活
+      const isDomainActive = await db.isDomainActive(domain);
+      if (!isDomainActive) {
+        // 如果域名不存在，自动添加
+        await db.addDomain(domain);
+      }
+
       try {
-        const result = await db.createAlias(body.alias.toLowerCase(), env.DOMAIN, body.description);
+        const result = await db.createAlias(body.alias.toLowerCase(), domain, body.description);
         return successResponse(result);
       } catch (e: unknown) {
         const error = e as Error;
-        if (error.message?.includes('duplicate')) {
-          return errorResponse('Alias already exists', 409);
+        if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          return errorResponse('Alias already exists for this domain', 409);
         }
         throw e;
       }
@@ -119,6 +135,48 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return errorResponse('Email not found', 404);
       }
       return successResponse(email);
+    }
+
+    // ========== 域名管理 API ==========
+
+    // GET /api/domains - 获取所有域名
+    if (method === 'GET' && path === '/api/domains') {
+      const domains = await db.getAllDomains();
+      return successResponse(domains);
+    }
+
+    // POST /api/domains - 添加新域名
+    if (method === 'POST' && path === '/api/domains') {
+      const body = await request.json() as { domain: string };
+
+      if (!body.domain) {
+        return errorResponse('Domain is required');
+      }
+
+      // 验证域名格式
+      const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$/;
+      if (!domainRegex.test(body.domain)) {
+        return errorResponse('Invalid domain format');
+      }
+
+      try {
+        const result = await db.addDomain(body.domain);
+        return successResponse(result);
+      } catch (e: unknown) {
+        const error = e as Error;
+        if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          return errorResponse('Domain already exists', 409);
+        }
+        throw e;
+      }
+    }
+
+    // DELETE /api/domains/:id - 删除域名
+    const deleteDomainMatch = path.match(/^\/api\/domains\/(\d+)$/);
+    if (method === 'DELETE' && deleteDomainMatch) {
+      const domainId = parseInt(deleteDomainMatch[1]);
+      await db.deleteDomain(domainId);
+      return successResponse({ deleted: true });
     }
 
     // 健康检查

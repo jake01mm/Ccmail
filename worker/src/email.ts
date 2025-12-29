@@ -7,14 +7,15 @@ import { extractCodeFromEmail } from './utils';
 export async function handleEmail(message: EmailMessage, env: Env): Promise<void> {
   const db = new Database(env);
 
-  // 提取收件人地址中的别名部分
-  const toAddress = message.to;
+  // 获取完整收件人地址（支持多域名）
+  const toAddress = message.to.toLowerCase();
   const alias = toAddress.split('@')[0].toLowerCase();
+  const domain = toAddress.split('@')[1]?.toLowerCase();
 
-  console.log(`Received email for: ${toAddress} (alias: ${alias})`);
+  console.log(`Received email for: ${toAddress} (alias: ${alias}, domain: ${domain})`);
 
-  // 检查别名是否存在且激活
-  const aliasId = await db.getAliasId(alias);
+  // 检查别名是否存在且激活（使用完整地址查找，支持多域名）
+  const aliasId = await db.getAliasId(toAddress);
 
   if (!aliasId) {
     console.log(`Alias not found or inactive: ${alias}`);
