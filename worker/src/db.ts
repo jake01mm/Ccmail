@@ -1,18 +1,18 @@
 // 数据库连接和操作
 import { Env } from './types';
-import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 
 export class Database {
-  private sql: NeonQueryFunction<false, false>;
+  private sql: ReturnType<typeof neon>;
 
   constructor(env: Env) {
-    this.sql = neon(env.DATABASE_URL);
+    this.sql = neon(env.DATABASE_URL, { fullResults: true });
   }
 
   private async query<T>(sqlQuery: string, params: unknown[] = []): Promise<T[]> {
-    // 使用 unsafe 方式执行动态 SQL
-    const result = await this.sql(sqlQuery as unknown as TemplateStringsArray, ...params);
-    return result as T[];
+    // 使用 query 方法执行带参数的 SQL
+    const result = await this.sql.query(sqlQuery, params);
+    return (result as { rows: T[] }).rows;
   }
 
   // 检查别名是否存在且激活
