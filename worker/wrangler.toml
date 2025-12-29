@@ -1,0 +1,14 @@
+name = "ccmail-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+DOMAIN = "truspaix.com"
+
+# 数据库连接字符串 - 使用 secrets 存储
+# 运行: npx wrangler secret put DATABASE_URL
+
+# 绑定 Hyperdrive (可选，用于连接池优化)
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "your-hyperdrive-id"
