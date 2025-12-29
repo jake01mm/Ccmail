@@ -410,6 +410,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
           '<div class="alias-actions">' +
             '<span class="badge badge-count">' + alias.email_count + ' emails</span>' +
             (!alias.is_active ? '<span class="badge badge-inactive">Inactive</span>' : '') +
+            '<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); copyEmail(\\'' + alias.full_address + '\\')" title="Copy email address">Copy</button>' +
             '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteAlias(' + alias.id + ')">Delete</button>' +
           '</div>' +
         '</div>'
@@ -563,6 +564,18 @@ export const HTML_PAGE = `<!DOCTYPE html>
         const toast = document.getElementById('toast');
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    }
+
+    function copyEmail(email) {
+      navigator.clipboard.writeText(email).then(() => {
+        const toast = document.getElementById('toast');
+        toast.textContent = 'Email copied!';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      }).catch(err => {
+        console.error('Failed to copy email:', err);
+        alert('Failed to copy email address');
       });
     }
 
