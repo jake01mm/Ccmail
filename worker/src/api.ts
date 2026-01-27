@@ -1,6 +1,6 @@
 // API 路由处理
 import { Env, ApiResponse } from './types';
-import { Database } from './db';
+import { createDatabase } from './db-adapter';
 import { HTML_PAGE } from './html';
 
 // CORS 头
@@ -41,7 +41,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const path = url.pathname;
   const method = request.method;
 
-  const db = new Database(env);
+  const db = createDatabase(env);
 
   try {
     // 路由匹配

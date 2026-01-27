@@ -1,7 +1,8 @@
 // 类型定义
 
 export interface Env {
-  DATABASE_URL: string;
+  DATABASE_URL?: string;  // PostgreSQL/Neon (可选)
+  DB?: D1Database;        // Cloudflare D1 (可选)
   DOMAIN: string;
 }
 

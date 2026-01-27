@@ -412,25 +412,25 @@ export const HTML_PAGE = `<!DOCTYPE html>
       // 常见邮箱格式模板
       const formats = [
         // 格式 1: firstname.surname + 数字
-        (f, s, n) => `${f}.${s}${n}`,
+        function(f, s, n) { return f + '.' + s + n; },
         // 格式 2: firstname + 数字 + surname
-        (f, s, n) => `${f}${n}${s}`,
+        function(f, s, n) { return f + n + s; },
         // 格式 3: firstname + surname (无数字)
-        (f, s, n) => `${f}.${s}`,
+        function(f, s, n) { return f + '.' + s; },
         // 格式 4: firstname + 首字母 + surname
-        (f, s, n) => `${f}${f[0]}.${s}`,
+        function(f, s, n) { return f + f[0] + '.' + s; },
         // 格式 5: 首字母 + surname + 数字
-        (f, s, n) => `${f[0]}.${s}${n}`,
+        function(f, s, n) { return f[0] + '.' + s + n; },
         // 格式 6: firstname + 下划线 + surname + 数字
-        (f, s, n) => `${f}_${s}${n}`,
+        function(f, s, n) { return f + '_' + s + n; },
         // 格式 7: firstname + 年份
-        (f, s, n) => `${f}${new Date().getFullYear()}`,
+        function(f, s, n) { return f + new Date().getFullYear(); },
         // 格式 8: firstname + 月份 + 年份后两位
-        (f, s, n) => `${f}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getFullYear()).slice(-2)}`,
+        function(f, s, n) { return f + String(new Date().getMonth() + 1).padStart(2, '0') + String(new Date().getFullYear()).slice(-2); },
         // 格式 9: surname + firstname + 数字
-        (f, s, n) => `${s}.${f}${n}`,
+        function(f, s, n) { return s + '.' + f + n; },
         // 格式 10: 首字母组合 + 数字
-        (f, s, n) => `${f[0]}${s[0]}${n}`,
+        function(f, s, n) { return f[0] + s[0] + n; },
       ];
       
       // 随机选择姓名
@@ -472,7 +472,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
         return;
       }
       select.innerHTML = domains.map(d => 
-        `<option value="${d.domain}">@${d.domain}</option>`
+        '<option value="' + d.domain + '">@' + d.domain + '</option>'
       ).join('');
       // 默认选择第一个域名
       if (domains.length > 0 && !select.value) {

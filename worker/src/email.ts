@@ -1,11 +1,11 @@
 // Email 处理器 - 处理收到的邮件
 import PostalMime from 'postal-mime';
 import { Env, EmailMessage } from './types';
-import { Database } from './db';
+import { createDatabase } from './db-adapter';
 import { extractCodeFromEmail } from './utils';
 
 export async function handleEmail(message: EmailMessage, env: Env): Promise<void> {
-  const db = new Database(env);
+  const db = createDatabase(env);
 
   // 获取完整收件人地址（支持多域名）
   const toAddress = message.to.toLowerCase();
